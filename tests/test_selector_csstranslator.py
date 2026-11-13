@@ -175,9 +175,44 @@ class TestTranslatorBase(ABC):
 class TestHTMLTranslator(TestTranslatorBase):
     tr_cls = HTMLTranslator
 
+    @pytest.mark.parametrize(
+        ("css", "xpath"),
+        [
+            # Attribute names in ::attr() are case-insensitive in HTML,
+            # matching the behavior of attribute selectors like [ATTR].
+            ("a::attr(HREF)", "descendant-or-self::a/@href"),
+            ("a::attr(Data-Foo)", "descendant-or-self::a/@data-foo"),
+            (r"a::attr(DATA\.FOO)", "descendant-or-self::a/@data.foo"),
+            ('a::attr("DATA.FOO")', "descendant-or-self::a/@data.foo"),
+            (
+                r"a::attr(DATA\:FOO)",
+                "descendant-or-self::a/attribute::*[name() = 'data:foo']",
+            ),
+        ],
+    )
+    def test_attr_function_case_insensitive(self, css: str, xpath: str) -> None:
+        assert self.c2x(css) == xpath, css
+
 
 class TestGenericTranslator(TestTranslatorBase):
     tr_cls = GenericTranslator
+
+    @pytest.mark.parametrize(
+        ("css", "xpath"),
+        [
+            # Attribute names in ::attr() stay case-sensitive in XML.
+            ("a::attr(HREF)", "descendant-or-self::a/@HREF"),
+            ("a::attr(Data-Foo)", "descendant-or-self::a/@Data-Foo"),
+            (r"a::attr(DATA\.FOO)", "descendant-or-self::a/@DATA.FOO"),
+            ('a::attr("DATA.FOO")', "descendant-or-self::a/@DATA.FOO"),
+            (
+                r"a::attr(DATA\:FOO)",
+                "descendant-or-self::a/attribute::*[name() = 'DATA:FOO']",
+            ),
+        ],
+    )
+    def test_attr_function_case_sensitive(self, css: str, xpath: str) -> None:
+        assert self.c2x(css) == xpath, css
 
 
 @pytest.mark.parametrize("tr_cls", [GenericTranslator, HTMLTranslator])
@@ -248,6 +283,25 @@ class TestCSSSelector:
         assert self.x(".cool-footer::attr(class)") == ["cool-footer"]
         assert self.x(".cool-footer ::attr(id)") == ["foobar-div", "foobar-span"]
         assert self.x('map[name="dummymap"] ::attr(shape)') == ["circle", "default"]
+
+    def test_attribute_function_case_insensitive_html(self) -> None:
+        # Attribute names in ::attr() are case-insensitive in HTML documents,
+        # matching the behavior of attribute selectors like [ATTR].
+        sel = Selector(text='<div DATA-FOO="bar" data.baz="qux"></div>')
+        assert sel.css("div::attr(DATA-FOO)").get() == "bar"
+        assert sel.css("div::attr(Data-Foo)").get() == "bar"
+        assert sel.css("div::attr(data-foo)").get() == "bar"
+        assert sel.css('div::attr("DATA.BAZ")').get() == "qux"
+        assert sel.css('div::attr("data.baz")').get() == "qux"
+
+    def test_attribute_function_case_sensitive_xml(self) -> None:
+        # Attribute names in ::attr() stay case-sensitive in XML documents.
+        sel = Selector(
+            text='<root><item DATA-FOO="upper" data-foo="lower"/></root>',
+            type="xml",
+        )
+        assert sel.css("item::attr(DATA-FOO)").get() == "upper"
+        assert sel.css("item::attr(data-foo)").get() == "lower"
 
     def test_nested_selector(self) -> None:
         assert self.sel.css("p").css("b::text").extract() == ["hi", "guy"]

@@ -3,6 +3,14 @@
 History
 -------
 
+Unreleased
+~~~~~~~~~~
+
+* Fixed the ``::attr()`` CSS pseudo-element matching attribute names
+  case-sensitively in HTML documents. Attribute names are now lowercased in
+  HTML, matching the behavior of attribute selectors like ``[ATTR]``. XML
+  documents keep case-sensitive matching.
+
 1.12.1 (2026-09-28)
 ~~~~~~~~~~~~~~~~~~~
 

@@ -142,10 +142,6 @@ def test_json_detection_bom(from_body: bool, obj: object) -> None:
     assert sel.root == obj
 
 
-@pytest.mark.xfail(
-    reason="::attr() does not lower-case the attribute name in HTML, unlike [attr]",
-    strict=True,
-)
 @given(
     st.text(st.characters(codec="ascii", categories=["L"]), min_size=1, max_size=5),
     # NULs are removed from the input, and the parser turns CR into LF.
